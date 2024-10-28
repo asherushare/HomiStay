@@ -1,4 +1,4 @@
-if(process.env.NODE_ENV != 'production') {
+if (process.env.NODE_ENV != "production") {
   require("dotenv").config();
 }
 
@@ -10,6 +10,7 @@ const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
 const ExpressError = require("./utils/ExpressError.js");
 const session = require("express-session");
+const MongoStore = require("connect-mongo");
 const flash = require("connect-flash");
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
@@ -19,11 +20,8 @@ const listingRouter = require("./routes/listing.js");
 const reviewRouter = require("./routes/review.js");
 const userRouter = require("./routes/user.js");
 
-const mongo_URL = "mongodb://127.0.0.1:27017/wanderlust";
 
-async function main() {
-  await mongoose.connect(mongo_URL);
-}
+const dbUrl = process.env.ATLASDB_URL;
 
 main()
   .then(() => {
@@ -33,6 +31,24 @@ main()
     console.log(err);
   });
 
+async function main() {
+  await mongoose.connect(dbUrl);
+}
+
+// const dbUrl =
+//   "mongodb+srv://patraKirsani:Bo86JMTvayYPZ4n8@cluster0.ijhpq.mongodb.net/wanderlust?retryWrites=true&w=majority"; // Include your database name
+
+// async function main() {
+//   try {
+//     await mongoose.connect(dbUrl);
+//     console.log("Connected to DB");
+//   } catch (err) {
+//     console.error("Database connection error:", err.message);
+//   }
+// }
+
+// main();
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.use(express.urlencoded({ extended: true }));
@@ -40,8 +56,22 @@ app.use(methodOverride("_method"));
 app.engine("ejs", ejsMate);
 app.use(express.static(path.join(__dirname, "/public")));
 
+
+const store = MongoStore.create({
+  mongoUrl: dbUrl,
+  crypto: {
+    secret: process.env.SECRET,
+  },
+  touchAfter: 24 * 3600,
+});
+
+store.on("error", () => {
+  console.error("Error in MONGO secction store", err);
+})
+
 const sessionOptions = {
-  secret: "mysupersecretecode",
+  store,
+  secret: process.env.SECRET,
   resave: false,
   saveUninitialized: true,
   cookie: {
@@ -51,9 +81,11 @@ const sessionOptions = {
   },
 };
 
-app.get("/", (req, res) => {
-  res.send("Hi, this is home page");
-});
+// app.get("/", (req, res) => {
+//   res.send("Hi, this is home page");
+// });
+
+
 
 app.use(session(sessionOptions));
 app.use(flash());
